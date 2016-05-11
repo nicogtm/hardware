@@ -180,51 +180,27 @@ module mam_tb;
 	end //writesingle
 	
 	//Test run for "write ready" input functioning properly.
+	//Write a single word twice, MAM has to wait for write_ready for first word
 	event writeready_trigger;
-	event writeready_done_trigger;
+	bit [15:0]	writeready_data[12] = {16'h0000, 16'h4000, 16'h8000, 16'h0000, 16'h0000, 16'h000f,
+						16'h0000, 16'h4000, 16'h8000, 16'h0000, 16'h0000, 16'h000c};
+	bit		writeready_last[12] = {0, 0, 0, 0, 0, 1,
+						0, 0, 0, 0, 0, 1};
 	
 	initial
 	begin: WRITEREADY
 		forever begin
 			@(writeready_trigger);
-		#50	write_ready = 0;
-		 	debug_in.data = 16'h0000; //header flit
-			@(negedge clk)
-			debug_in.valid = 1;
-			@(negedge clk);
-			debug_in.valid = 0;
-		#50	debug_in.data = 16'h4000; //header flit
-			@(negedge clk)
-			debug_in.valid = 1;
-			@(negedge clk);
-			debug_in.valid = 0;
-		#50	debug_in.data = {1'b1, 1'b0, 14'h0}; //MAM header flit, W, Single, strobe
-			@(negedge clk)
-			debug_in.valid = 1;
-			@(negedge clk);
-			debug_in.valid = 0;
-		#50	debug_in.data = 16'h0; //Address x0000 flit 1
-			@(negedge clk)
-			debug_in.valid = 1;
-			@(negedge clk);
-			debug_in.valid = 0;
-		#50	debug_in.data = 16'h0; //Address x0000 flit 2
-			@(negedge clk)
-			debug_in.valid = 1;
-			@(negedge clk);
-			debug_in.valid = 0;
-		#50 	debug_in.data = 16'hf; //data flit
-			debug_in.last = 1;
-			@(negedge clk)
-			debug_in.valid = 1;
-		#150	@(negedge clk)
-			write_ready = 1;
-			@(negedge clk)
-			debug_in.valid = 0;
-			debug_in.last = 0; //end packet
-			-> writeready_done_trigger;
+			write_ready = 0;
+			cnt = 0;
+			MAXCNT = 12;
+			packets[0:11] = writeready_data;
+			packet_last[0:11] = writeready_last;
+			-> flit_trigger;
+			
+		#500	 write_ready = 1;
 		end
-	end
+	end //writeready
 	
 		
 	//build test run from blocks
@@ -235,17 +211,13 @@ module mam_tb;
 		while(!debug_in_ready) begin
 			#1;
 		end
-			-> writesingle_trigger;
+			-> writeready_trigger;
 		@(transfer_done_trigger);
 		while(!debug_in_ready) begin
 			#1;
 		end
-	//	#50	-> writesingle_trigger;
-	//	@(writesingle_done_trigger);
-	//	#50	-> writeaddr_trigger;
-	//	@(writeaddr_done_trigger);
-	//	#50	-> writeready_trigger;
-	//	@(writeready_done_trigger);
+			-> writetwo_trigger;
+		@(transfer_done_trigger);
 	end
 
 endmodule
