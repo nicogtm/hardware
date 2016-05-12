@@ -4,6 +4,39 @@ module mam_tb;
 	localparam DATA_WIDTH = 16;
 	localparam ADDR_WIDTH = 32;
 	
+	/////////////////
+	//Parameters to define Test Runs
+	////////////////
+	localparam MAX_TEST_LENGTH = 25; //maximum number of flits transferred in any of the test runs
+	//lengths have to match lengths of data and last arrays corresponding to the run
+	localparam WRTWO_LENGTH = 13;
+	localparam WRADDR_LENGTH = 25;
+	localparam WRSINGLE_LENGTH = 6;
+	localparam WRREADY_LENGTH = 12;
+	
+	bit [DATA_WIDTH-1:0] 	wrtwo_data[WRTWO_LENGTH] = {16'h0000, 16'h4000, 16'hc006, 16'h0000, 16'h0000, 16'h0001, 16'h0002, 16'h0003,
+							16'h0000, 16'h4000, 16'h0004, 16'h0005, 16'h0006};
+	bit			wrtwo_last[WRTWO_LENGTH] = {0, 0, 0, 0, 0, 0, 0, 1,
+							 0, 0, 0, 0, 1};
+						 
+	bit [DATA_WIDTH-1:0] 	wraddr_data[WRADDR_LENGTH] = {16'h0000, 16'h4000, 16'hc010, 16'h0000, 16'h0000,
+						 	16'h0000, 16'h4000, 16'h0001, 16'h0002, 16'h0003, 16'h0004, 16'h0005, 16'h0006, 16'h0007, 16'h0008,
+					 		16'h0000, 16'h4000, 16'h0009, 16'h000a, 16'h000b, 16'h000c, 16'h000d, 16'h000e, 16'h000f, 16'h0010};
+	bit			wraddr_last[WRADDR_LENGTH] = {0, 0, 0, 0, 1,
+							0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+							0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
+							
+	bit [DATA_WIDTH-1:0]	wrsingle_data[WRSINGLE_LENGTH] = {16'h0000, 16'h4000, 16'h8000, 16'h0000, 16'h0000, 16'h000f};
+	bit			wrsingle_last[WRSINGLE_LENGTH] = {0, 0, 0, 0, 0, 1};
+	
+
+	bit [DATA_WIDTH-1:0]	wrready_data[WRREADY_LENGTH] = {16'h0000, 16'h4000, 16'h8000, 16'h0000, 16'h0000, 16'h000f, 16'h0000, 16'h4000, 16'h8000, 16'h0000, 16'h0000, 16'h000c};
+	bit			wrready_last[WRREADY_LENGTH] = {0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1};
+	
+	////////////////
+	// End of Parameters for Test Runs
+	////////////////
+	
 	reg 			clk, rst;
 	dii_flit 		debug_in, debug_out;
 	reg 			debug_out_ready;
@@ -80,8 +113,8 @@ module mam_tb;
 	int MAXCNT = 13;
 	
 	//sending flits
-	bit [15:0] 	packets[25];
-	bit		packet_last[25];
+	bit [DATA_WIDTH-1:0] 	packets[MAX_TEST_LENGTH];
+	bit		packet_last[MAX_TEST_LENGTH];
 	event flit_trigger;
 	event flit_done_trigger;
 	
@@ -120,90 +153,75 @@ module mam_tb;
 	
 	//Test run for burst write of two packets
 	//data is incremented and output should be x0000...x0006
-	event 		writetwo_trigger;
-	bit [15:0] 	writetwo_data[13] = {16'h0000, 16'h4000, 16'hc006, 16'h0000, 16'h0000, 16'h0001, 16'h0002, 16'h0003,
-						16'h0000, 16'h4000, 16'h0004, 16'h0005, 16'h0006};
-	bit		writetwo_last[13] = {0, 0, 0, 0, 0, 0, 0, 1,
-						 0, 0, 0, 0, 1};
+	event 		wrtwo_trigger;
 	
 	initial
-	begin: WRITETWO
+	begin: WRTWO
 		forever begin
-			@(writetwo_trigger);
+			@(wrtwo_trigger);
 			cnt = 0;
 			MAXCNT = 13;
-			packets[0:12] = writetwo_data;
-			packet_last[0:12] = writetwo_last;
+			packets[0:12] = wrtwo_data;
+			packet_last[0:12] = wrtwo_last;
 			-> flit_trigger;
 		end
-	end //writetwo
+	end //wrtwo
 	
 	
 	//Test run for burst write of three packets with the first packet being the address only
 	//data is incremented and output should be x0001...x0010
-	event writeaddr_trigger;
-	bit [15:0] 	writeaddr_data[25] = {16'h0000, 16'h4000, 16'hc010, 16'h0000, 16'h0000,
-						 16'h0000, 16'h4000, 16'h0001, 16'h0002, 16'h0003, 16'h0004, 16'h0005, 16'h0006, 16'h0007, 16'h0008,
-					 	16'h0000, 16'h4000, 16'h0009, 16'h000a, 16'h000b, 16'h000c, 16'h000d, 16'h000e, 16'h000f, 16'h0010};
-	bit		writeaddr_last[25] = {0, 0, 0, 0, 1,
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
-						0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
+	event wraddr_trigger;
 	initial
-	begin: WRITEADDR
+	begin: WRADDR
 		forever begin
-			@(writeaddr_trigger);
+			@(wraddr_trigger);
 			cnt = 0;
 			MAXCNT = 25;
-			packets = writeaddr_data;
-			packet_last = writeaddr_last;
+			packets = wraddr_data;
+			packet_last = wraddr_last;
 			-> flit_trigger;
 		end
-	end //writeaddr
+	end //wraddr
 	
 	
 	//Test run for writing a single data word
 	//write data should be xF
-	event writesingle_trigger;
-	bit [15:0]	writesingle_data[6] = {16'h0000, 16'h4000, 16'h8000, 16'h0000, 16'h0000, 16'h000f};
-	bit		writesingle_last[6] = {0, 0, 0, 0, 0, 1};
+	event wrsingle_trigger;
 	
 	initial
-	begin: WRITESINGLE
+	begin: WRSINGLE
 		forever begin
-			@(writesingle_trigger);
+			@(wrsingle_trigger);
 			cnt = 0;
 			MAXCNT = 6;
-			packets[0:5] = writesingle_data;
-			packet_last[0:5] = writesingle_last;
+			packets[0:5] = wrsingle_data;
+			packet_last[0:5] = wrsingle_last;
 			-> flit_trigger;
 		end
-	end //writesingle
+	end //wrsingle
 	
 	//Test run for "write ready" input functioning properly.
 	//Write a single word twice, MAM has to wait for write_ready for first word
-	event writeready_trigger;
-	bit [15:0]	writeready_data[12] = {16'h0000, 16'h4000, 16'h8000, 16'h0000, 16'h0000, 16'h000f,
-						16'h0000, 16'h4000, 16'h8000, 16'h0000, 16'h0000, 16'h000c};
-	bit		writeready_last[12] = {0, 0, 0, 0, 0, 1,
-						0, 0, 0, 0, 0, 1};
+	event wrready_trigger;
 	
 	initial
-	begin: WRITEREADY
+	begin: WRREADY
 		forever begin
-			@(writeready_trigger);
+			@(wrready_trigger);
 			write_ready = 0;
 			cnt = 0;
 			MAXCNT = 12;
-			packets[0:11] = writeready_data;
-			packet_last[0:11] = writeready_last;
+			packets[0:11] = wrready_data;
+			packet_last[0:11] = wrready_last;
 			-> flit_trigger;
 			
 		#500	 write_ready = 1;
 		end
-	end //writeready
+	end //wrready
 	
 		
 	//build test run from blocks
+	//use wrready_trigger, wrsingle_trigger, wrtwo_trigger and wraddr_trigger for corresponding test run.
 	initial
 	begin: TEST_RUN
 		#10 	-> reset_trigger;
@@ -211,12 +229,22 @@ module mam_tb;
 		while(!debug_in_ready) begin
 			#1;
 		end
-			-> writeready_trigger;
+			-> wrready_trigger;
 		@(transfer_done_trigger);
 		while(!debug_in_ready) begin
 			#1;
 		end
-			-> writetwo_trigger;
+			-> wrtwo_trigger;
+		@(transfer_done_trigger);
+		while(!debug_in_ready) begin
+			#1;
+		end
+			-> wraddr_trigger;
+		@(transfer_done_trigger);
+		while(!debug_in_ready) begin
+			#1;
+		end
+			-> wrsingle_trigger;
 		@(transfer_done_trigger);
 	end
 
