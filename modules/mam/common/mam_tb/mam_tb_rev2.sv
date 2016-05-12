@@ -114,7 +114,7 @@ module mam_tb;
 	int MAXCNT = 13;
 	
 	//sending flits
-	bit [DATA_WIDTH-1:0] 	packets[MAX_TEST_LENGTH];
+	bit [15:0] 	packets[MAX_TEST_LENGTH];
 	bit		packet_last[MAX_TEST_LENGTH];
 	event flit_trigger;
 	event flit_done_trigger;
