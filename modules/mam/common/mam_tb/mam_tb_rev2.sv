@@ -14,23 +14,24 @@ module mam_tb;
 	localparam WRSINGLE_LENGTH = 6;
 	localparam WRREADY_LENGTH = 12;
 	
-	bit [DATA_WIDTH-1:0] 	wrtwo_data[WRTWO_LENGTH] = {16'h0000, 16'h4000, 16'hc006, 16'h0000, 16'h0000, 16'h0001, 16'h0002, 16'h0003,
+	//In case of burst writes, make sure burst length in third flit (MAM header flit) matches the number of words to be written
+	bit [15:0] 	wrtwo_data[WRTWO_LENGTH] = {16'h0000, 16'h4000, 16'hc006, 16'h0000, 16'h0000, 16'h0001, 16'h0002, 16'h0003,
 							16'h0000, 16'h4000, 16'h0004, 16'h0005, 16'h0006};
 	bit			wrtwo_last[WRTWO_LENGTH] = {0, 0, 0, 0, 0, 0, 0, 1,
 							 0, 0, 0, 0, 1};
 						 
-	bit [DATA_WIDTH-1:0] 	wraddr_data[WRADDR_LENGTH] = {16'h0000, 16'h4000, 16'hc010, 16'h0000, 16'h0000,
+	bit [15:0] 	wraddr_data[WRADDR_LENGTH] = {16'h0000, 16'h4000, 16'hc010, 16'h0000, 16'h0000,
 						 	16'h0000, 16'h4000, 16'h0001, 16'h0002, 16'h0003, 16'h0004, 16'h0005, 16'h0006, 16'h0007, 16'h0008,
 					 		16'h0000, 16'h4000, 16'h0009, 16'h000a, 16'h000b, 16'h000c, 16'h000d, 16'h000e, 16'h000f, 16'h0010};
 	bit			wraddr_last[WRADDR_LENGTH] = {0, 0, 0, 0, 1,
 							0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
 							0, 0, 0, 0, 0, 0, 0, 0, 0, 1};
 							
-	bit [DATA_WIDTH-1:0]	wrsingle_data[WRSINGLE_LENGTH] = {16'h0000, 16'h4000, 16'h8000, 16'h0000, 16'h0000, 16'h000f};
+	bit [15:0]	wrsingle_data[WRSINGLE_LENGTH] = {16'h0000, 16'h4000, 16'h8000, 16'h0000, 16'h0000, 16'h000f};
 	bit			wrsingle_last[WRSINGLE_LENGTH] = {0, 0, 0, 0, 0, 1};
 	
 
-	bit [DATA_WIDTH-1:0]	wrready_data[WRREADY_LENGTH] = {16'h0000, 16'h4000, 16'h8000, 16'h0000, 16'h0000, 16'h000f, 16'h0000, 16'h4000, 16'h8000, 16'h0000, 16'h0000, 16'h000c};
+	bit [15:0]	wrready_data[WRREADY_LENGTH] = {16'h0000, 16'h4000, 16'h8000, 16'h0000, 16'h0000, 16'h000f, 16'h0000, 16'h4000, 16'h8000, 16'h0000, 16'h0000, 16'h000c};
 	bit			wrready_last[WRREADY_LENGTH] = {0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1};
 	
 	////////////////
@@ -160,9 +161,9 @@ module mam_tb;
 		forever begin
 			@(wrtwo_trigger);
 			cnt = 0;
-			MAXCNT = 13;
-			packets[0:12] = wrtwo_data;
-			packet_last[0:12] = wrtwo_last;
+			MAXCNT = WRTWO_LENGTH;
+			packets[0:WRTWO_LENGTH-1] = wrtwo_data;
+			packet_last[0:WRTWO_LENGTH-1] = wrtwo_last;
 			-> flit_trigger;
 		end
 	end //wrtwo
@@ -176,9 +177,9 @@ module mam_tb;
 		forever begin
 			@(wraddr_trigger);
 			cnt = 0;
-			MAXCNT = 25;
-			packets = wraddr_data;
-			packet_last = wraddr_last;
+			MAXCNT = WRADDR_LENGTH;
+			packets[0:WRADDR_LENGTH-1] = wraddr_data;
+			packet_last[0:WRADDR_LENGTH-1] = wraddr_last;
 			-> flit_trigger;
 		end
 	end //wraddr
@@ -193,9 +194,9 @@ module mam_tb;
 		forever begin
 			@(wrsingle_trigger);
 			cnt = 0;
-			MAXCNT = 6;
-			packets[0:5] = wrsingle_data;
-			packet_last[0:5] = wrsingle_last;
+			MAXCNT = WRSINGLE_LENGTH;
+			packets[0:WRSINGLE_LENGTH-1] = wrsingle_data;
+			packet_last[0:WRSINGLE_LENGTH-1] = wrsingle_last;
 			-> flit_trigger;
 		end
 	end //wrsingle
@@ -210,9 +211,9 @@ module mam_tb;
 			@(wrready_trigger);
 			write_ready = 0;
 			cnt = 0;
-			MAXCNT = 12;
-			packets[0:11] = wrready_data;
-			packet_last[0:11] = wrready_last;
+			MAXCNT = WRREADY_LENGTH;
+			packets[0:WRREADY_LENGTH-1] = wrready_data;
+			packet_last[0:WRREADY_LENGTH-1] = wrready_last;
 			-> flit_trigger;
 			
 		#500	 write_ready = 1;
