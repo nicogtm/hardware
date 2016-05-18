@@ -202,7 +202,7 @@ module mam_tb;
 	end //wrsingle
 	
 	//Test run for "write ready" input functioning properly.
-	//Write a single word twice, MAM has to wait for write_ready for first word
+	//Write two single words, MAM has to wait for write_ready for first word
 	event wrready_trigger;
 	
 	initial
