@@ -33,8 +33,8 @@ module mam_wb_if
     enum {
         STATE_IDLE, STATE_WRITE_LAST, STATE_WRITE_LAST_WAIT,
         STATE_WRITE, STATE_WRITE_WAIT,
-        STATE_READ_LAST, STATE_READ_LAST_WAIT,
-        STATE_READ, STATE_READ_WAIT
+        STATE_READ_LAST, STATE_READ_LAST_BURST, STATE_READ_LAST_WAIT,
+        STATE_READ_START, STATE_READ, STATE_READ_WAIT
         } state, nxt_state;
     
     logic                   nxt_STB_O;
@@ -104,32 +104,57 @@ module mam_wb_if
                     nxt_CYC_O = 1;
                     nxt_ADDR_O = req_addr;
                     if (req_rw) begin
-                        nxt_STB_O = 0;
                         nxt_WE_O = 1;
                         if (req_burst) begin
                             if (nxt_beats == 1) begin
-                                nxt_state = STATE_WRITE_LAST_WAIT;
                                 nxt_CTI_O = 3'b111;
+                                if (write_valid) begin
+                                    nxt_state = STATE_WRITE_LAST;
+                                    nxt_STB_O = 1;
+                                end else begin
+                                    nxt_state = STATE_WRITE_LAST_WAIT;
+                                    nxt_STB_O = 0;
+                                end
                             end else begin
-                                nxt_state = STATE_WRITE_WAIT;
-                                nxt_BTE_O = 2'b00;
                                 nxt_CTI_O = 3'b010;
+                                nxt_BTE_O = 2'b00;
+                                if (write_valid) begin
+                                    nxt_state = STATE_WRITE;
+                                    nxt_STB_O = 1;
+                                end else begin
+                                    nxt_state = STATE_WRITE_WAIT;
+                                    nxt_STB_O = 0;
+                                end
                             end
-                        end else begin
-                            nxt_state = STATE_WRITE_LAST_WAIT;
+                        end else begin // !req_burst
                             nxt_CTI_O = 3'b111;
-                        end
+                            if (write_valid) begin
+                                nxt_state = STATE_WRITE_LAST;
+                                nxt_STB_O = 1;
+                            end else begin
+                                nxt_state = STATE_WRITE_LAST_WAIT;
+                                nxt_STB_O = 0;
+                            end                            
+                        end // if (req_burst)
                     end else begin // req_rw == 0
                         nxt_WE_O = 0;
                         if (req_burst) begin
                             if (nxt_beats == 1) begin
-                                nxt_state = STATE_READ_LAST_WAIT;
+                                nxt_CTI_O = 3'b111;
+                                nxt_state = STATE_READ_LAST;
+                                nxt_STB_O = 1;
                             end else begin
-                                nxt_state = STATE_READ_WAIT;
+                                nxt_CTI_O = 3'b010;
+                                nxt_state = STATE_READ_START;
+                                nxt_STB_O = 1;
+                                end
                             end
-                        end else begin
-                            nxt_state = STATE_READ_LAST_WAIT;
-                        end
+                        end else begin // !req_burst
+                            nxt_CTI_O = 3'b111;
+                            nxt_state = STATE_READ_LAST;
+                            nxt_STB_O = 1;
+                            end
+                        end // if (req_burst)
                     end // if (req_rw)
                 end // if (req_valid)
             end //STATE_IDLE
@@ -186,7 +211,79 @@ module mam_wb_if
                     end // if (beats == 1)
                 end // if (ACK_I)
             end // STATE_WRITE
-        endcase// Case
+            STATE_READ_LAST: begin
+                nxt_STB_O = 1;
+                if (ACK_I) begin
+                    nxt_STB_O = 0;
+                    nxt_read_data_reg = DAT_I;
+                    nxt_state = STATE_READ_LAST_WAIT;
+                end
+            end //STATE_READ_LAST
+            STATE_READ_LAST_WAIT: begin
+                nxt_STB_O = 0;
+                read_valid = 1;
+                if (read_ready) begin
+                    nxt_state = STATE_IDLE;
+                    nxt_CYC_O = 0;
+                end
+            end // STATE_READ_LAST_WAIT
+            STATE_READ_START: begin
+                nxt_STB_O = 1;
+                if (ACK_I) begin
+                    nxt_read_data_reg = DAT_I;                    
+                    nxt_beats = beats - 1;
+                    nxt_ADDR_O = ADDR_O + DATA_WIDTH/8;
+                    if (beats == 1) begin
+                        nxt_state = STATE_READ_LAST_BURST;
+                        nxt_CTI_O = 3'b111;
+                    end else begin
+                        if (read_ready) begin
+                            nxt_state = STATE_READ;
+                        end else begin
+                            nxt_STB_O = 0;
+                            nxt_state = STATE_READ_WAIT;
+                        end
+                    end
+                end
+            STATE_READ: begin
+                nxt_STB_O = 1;
+                if (ACK_I) begin
+                    nxt_read_data_reg = DAT_I;
+                    nxt_beats = beats - 1;
+                    nxt_ADDR_O = ADDR_O + DATA_WIDTH/8;
+                    if (beats == 1) begin
+                        nxt_state = STATE_READ_LAST_BURST;
+                        nxt_CTI_O = 3'b111;
+                    end else begin
+                        if (read_ready) begin
+                            nxt_state = STATE_READ;
+                        end else begin
+                            nxt_STB_O = 0;
+                            nxt_state = STATE_READ_WAIT;
+                        end
+                    end
+                end else begin
+                    nxt_state = STATE_READ_START;
+                end
+            end //STATE_READ
+            STATE_READ_WAIT: begin
+                nxt_STB_O = 0;
+                if (read_ready) begin
+                    nxt_state = STATE_READ_START;
+                end
+            end //STATE_READ_WAIT
+            STATE_READ_LAST_BURST: begin
+                read_valid = 1;
+                nxt_STB_O = 1;
+                if (ACK_I) begin
+                    nxt_STB_O = 0;
+                    nxt_read_data_reg = DAT_I;
+                    nxt_state = STATE_READ_LAST_WAIT;
+                end else begin
+                    nxt_state = STATE_READ_LAST;
+                end
+            end //STATE_READ_LAST_BURST
+        endcase// Case (state)
     end // always_comb
 
 endmodule
