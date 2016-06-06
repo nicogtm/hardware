@@ -147,13 +147,11 @@ module mam_wb_if
                                 nxt_CTI_O = 3'b010;
                                 nxt_state = STATE_READ_START;
                                 nxt_STB_O = 1;
-                                end
                             end
                         end else begin // !req_burst
                             nxt_CTI_O = 3'b111;
                             nxt_state = STATE_READ_LAST;
                             nxt_STB_O = 1;
-                            end
                         end // if (req_burst)
                     end // if (req_rw)
                 end // if (req_valid)
@@ -245,6 +243,7 @@ module mam_wb_if
                         end
                     end
                 end
+			end
             STATE_READ: begin
                 nxt_STB_O = 1;
                 if (ACK_I) begin

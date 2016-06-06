@@ -100,10 +100,10 @@ module mam_wb_if_tb;
     
     //Debug Ring
     debug_ring #(
-            .PORTS(PORTS),
-            .PORTIDMAP(PORTIDMAP))
+            .PORTS(PORTS)
+            )
     dbg_ring_ut(.dii_in(debug_in), .dii_in_ready(debug_in_ready),
-            .dii_out(debug_out), .dii_out_ready(debug_out_ready),
+            .dii_out(debug_out), .dii_out_ready(debug_out_ready), .id_map(PORTIDMAP),
             .*);
             
     //Wishbone IF
