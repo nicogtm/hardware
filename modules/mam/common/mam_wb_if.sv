@@ -27,7 +27,8 @@ module mam_wb_if
     output reg [DATA_WIDTH-1:0] DAT_O,
     input [DATA_WIDTH-1:0]      DAT_I,
     output reg [2:0]            CTI_O,
-    output reg [1:0]            BTE_O
+    output reg [1:0]            BTE_O,
+    output reg                     SEL_O
     );
     
     enum {
@@ -87,6 +88,7 @@ module mam_wb_if
         nxt_DAT_O_reg = DAT_O_reg;
         nxt_ADDR_O = ADDR_O;
         nxt_beats = beats;
+        SEL_O = 0;
         
         req_ready = 0;
         write_ready = 0;
@@ -275,6 +277,7 @@ module mam_wb_if
                 nxt_STB_O = 0;
                 read_valid = 1;
                 if (read_ready) begin
+                    nxt_STB_O = 1;
                     nxt_state = STATE_READ_START;
                 end
             end //STATE_READ_WAIT

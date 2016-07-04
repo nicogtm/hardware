@@ -88,6 +88,7 @@ module mam_wb_if_tb;
     reg [DATA_WIDTH-1:0]   DAT_I;
     reg [2:0]               CTI_O;
     reg [1:0]               BTE_O;
+    reg                       SEL_O;
     
     //MAM Module
     osd_mam #(
