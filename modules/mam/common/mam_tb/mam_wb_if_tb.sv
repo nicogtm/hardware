@@ -19,6 +19,7 @@ module mam_wb_if_tb;
     localparam WRADDR_LENGTH = 25;
     localparam WRSINGLE_LENGTH = 6;
     localparam WRREADY_LENGTH = 12;
+    localparam RDBURST_LENGTH = 4;
     
     //In case of burst writes, make sure burst length in third flit (MAM header flit) matches the number of words to be written
     bit [15:0]  wrtwo_data[WRTWO_LENGTH] = {{6'h0, PORTIDMAP[19:10]}, {6'h10, PORTIDMAP[9:0]}, 16'hc006, 16'h0000, 16'h0000, 16'h0001, 16'h0002, 16'h0003,
@@ -35,6 +36,10 @@ module mam_wb_if_tb;
                             
     bit [15:0]  wrsingle_data[WRSINGLE_LENGTH] = {{6'h0, PORTIDMAP[19:10]}, {6'h10, PORTIDMAP[9:0]}, 16'h8000, 16'h0000, 16'h0000, 16'h000f};
     bit         wrsingle_last[WRSINGLE_LENGTH] = {0, 0, 0, 0, 0, 1};
+    
+    bit [15:0] rdburst_data[RDBURST_LENGTH] = {16'h0001, 16'h0002, 16'h0003, 16'h0004};
+    bit [15:0] rdburst_req_flits[5] = {{6'h0, PORTIDMAP[19:10]}, {6'h10, PORTIDMAP[9:0]}, 16'h4004, 16'h0000, 16'h0000};
+    bit          rdburst_req_last[5] = {0, 0, 0, 0, 1};
      
     ////////////////
     // End of Parameters for Test Runs
@@ -123,14 +128,38 @@ module mam_wb_if_tb;
         debug_out_ready[0] = 1;
         
         DAT_I = '0;
-        ACK_I = 0;
-        #500 ACK_I = 1;
     end //initialize
+    
     
     //clock gen
     always
         #10     clk = !clk;
     
+    
+    int rd_cnt = 0;
+    int MAX_RD_CNT;
+    reg nxt_ACK_I;
+    
+    always_comb begin
+        if (CYC_O && CTI_O != 3'b111) begin
+            nxt_ACK_I = 1;
+        end else begin
+            nxt_ACK_I = 0;
+        end
+    end
+    
+    always  @(posedge clk) begin
+         ACK_I = nxt_ACK_I;
+         
+        if(!WE_O & nxt_ACK_I) begin
+           
+            DAT_I = rdburst_data[rd_cnt];
+            rd_cnt = rd_cnt + 1;
+            if (rd_cnt == RDBURST_LENGTH) begin
+                rd_cnt = 0;
+            end
+        end
+    end
     //reset logic
     event reset_trigger;
     event reset_done_trigger;
@@ -238,6 +267,20 @@ module mam_wb_if_tb;
         end
     end //wrsingle
     
+    event rdburst_trigger;
+    
+    initial
+    begin: RDBURST
+        forever begin
+            @(rdburst_trigger);
+            cnt = 0;
+            MAXCNT = 5;
+            packets[0:4] = rdburst_req_flits;
+            packet_last[0:4] = rdburst_req_last;
+             -> flit_trigger;
+         end
+     end
+    
         
     //build test run from blocks
     //use wrsingle_trigger, wrtwo_trigger and wraddr_trigger for corresponding test run.
@@ -248,18 +291,23 @@ module mam_wb_if_tb;
         while(!debug_out_ready[0]) begin
             #1;
         end
-            -> wrtwo_trigger;
+            // -> wrtwo_trigger;
+        // @(transfer_done_trigger);
+        // while(!debug_out_ready[0]) begin
+            // #1;
+        // end
+            // -> wraddr_trigger;
+        // @(transfer_done_trigger);
+        // while(!debug_out_ready[0]) begin
+            // #1;
+        // end
+            // -> wrsingle_trigger;
+        // @(transfer_done_trigger);
+        -> rdburst_trigger;
         @(transfer_done_trigger);
         while(!debug_out_ready[0]) begin
             #1;
-        end
-            -> wraddr_trigger;
-        @(transfer_done_trigger);
-        while(!debug_out_ready[0]) begin
-            #1;
-        end
-            -> wrsingle_trigger;
-        @(transfer_done_trigger);
+        end   
     end
 
 endmodule

@@ -110,6 +110,7 @@ module mam_wb_if
                                 nxt_CTI_O = 3'b111;
                                 if (write_valid) begin
                                     nxt_state = STATE_WRITE_LAST;
+                                    nxt_DAT_O_reg = write_data;
                                     nxt_STB_O = 1;
                                 end else begin
                                     nxt_state = STATE_WRITE_LAST_WAIT;
@@ -120,6 +121,7 @@ module mam_wb_if
                                 nxt_BTE_O = 2'b00;
                                 if (write_valid) begin
                                     nxt_state = STATE_WRITE;
+                                    nxt_DAT_O_reg = write_data;
                                     nxt_STB_O = 1;
                                 end else begin
                                     nxt_state = STATE_WRITE_WAIT;
@@ -130,6 +132,7 @@ module mam_wb_if
                             nxt_CTI_O = 3'b111;
                             if (write_valid) begin
                                 nxt_state = STATE_WRITE_LAST;
+                                    nxt_DAT_O_reg = write_data;
                                 nxt_STB_O = 1;
                             end else begin
                                 nxt_state = STATE_WRITE_LAST_WAIT;
@@ -171,6 +174,7 @@ module mam_wb_if
                     nxt_state = STATE_IDLE;
                     nxt_CYC_O = 0;
                     nxt_STB_O = 0;
+                    nxt_CTI_O = 3'b000;
                 end
             end //STATE_WRITE_LAST
             STATE_WRITE_WAIT: begin
@@ -223,6 +227,7 @@ module mam_wb_if
                 if (read_ready) begin
                     nxt_state = STATE_IDLE;
                     nxt_CYC_O = 0;
+                    nxt_CTI_O = 3'b000;
                 end
             end // STATE_READ_LAST_WAIT
             STATE_READ_START: begin
@@ -231,7 +236,7 @@ module mam_wb_if
                     nxt_read_data_reg = DAT_I;                    
                     nxt_beats = beats - 1;
                     nxt_ADDR_O = ADDR_O + DATA_WIDTH/8;
-                    if (beats == 1) begin
+                    if (nxt_beats == 1) begin
                         nxt_state = STATE_READ_LAST_BURST;
                         nxt_CTI_O = 3'b111;
                     end else begin
@@ -246,11 +251,12 @@ module mam_wb_if
 			end
             STATE_READ: begin
                 nxt_STB_O = 1;
+                read_valid = 1;
                 if (ACK_I) begin
                     nxt_read_data_reg = DAT_I;
                     nxt_beats = beats - 1;
                     nxt_ADDR_O = ADDR_O + DATA_WIDTH/8;
-                    if (beats == 1) begin
+                    if (nxt_beats == 1) begin
                         nxt_state = STATE_READ_LAST_BURST;
                         nxt_CTI_O = 3'b111;
                     end else begin
@@ -267,6 +273,7 @@ module mam_wb_if
             end //STATE_READ
             STATE_READ_WAIT: begin
                 nxt_STB_O = 0;
+                read_valid = 1;
                 if (read_ready) begin
                     nxt_state = STATE_READ_START;
                 end
