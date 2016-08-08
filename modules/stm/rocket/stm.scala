@@ -1,13 +1,14 @@
 package open_soc_debug
 
 import Chisel._
+import cde.{Parameters}
 
-class SoftwareTrace extends DebugModuleBundle {
+class SoftwareTrace(implicit p: Parameters) extends DebugModuleBundle()(p) {
   val id    = UInt(width=16)
   val value = UInt(width=sysWordLength)
 }
 
-class SoftwareTraceIO extends DebugModuleBBoxIO {
+class SoftwareTraceIO(implicit p: Parameters) extends DebugModuleBBoxIO()(p) {
   val trace = (new ValidIO(new SoftwareTrace)).flip
   trace.valid.setName("trace_valid")
   trace.bits.id.setName("trace_id")
@@ -21,7 +22,7 @@ class SoftwareTraceIO extends DebugModuleBBoxIO {
 }
 
 // black box wrapper
-class osd_stm extends BlackBox with HasDebugModuleParameters {
+class osd_stm(implicit val p: Parameters) extends BlackBox with HasDebugModuleParameters {
   val io = new SoftwareTraceIO
 
   setVerilogParameters("#(.REG_ADDR_WIDTH(" + regAddrWidth + "))")
@@ -30,7 +31,7 @@ class osd_stm extends BlackBox with HasDebugModuleParameters {
   renameReset("rst")
 }
 
-class RocketSoftwareTraceIO extends DebugModuleIO {
+class RocketSoftwareTraceIO(implicit p: Parameters) extends DebugModuleIO()(p) {
   val retire = Bool(INPUT)
   val reg_wdata = UInt(INPUT, width=sysWordLength)
   val reg_waddr = UInt(INPUT, width=regAddrWidth)
@@ -40,7 +41,9 @@ class RocketSoftwareTraceIO extends DebugModuleIO {
   val csr_wen = Bool(INPUT)
 }
 
-class RocketSoftwareTracer(coreid:Int, latch:Boolean = false)(rst:Bool = null) extends DebugModuleModule(coreid)(rst) {
+class RocketSoftwareTracer(coreid:Int, latch:Boolean = false)(rst:Bool = null)(implicit p: Parameters)
+    extends DebugModuleModule(coreid)(rst)(p)
+{
   val io = new RocketSoftwareTraceIO
 
   val tracer = Module(new osd_stm)
