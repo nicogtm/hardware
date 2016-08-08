@@ -1,6 +1,8 @@
 package open_soc_debug
 
 import Chisel._
+import cde.{Parameters, Field}
+import junctions.ParameterizedBundle
 
 case object UseDebug extends Field[Boolean]
 case object DebugCtmID extends Field[Int]
@@ -11,37 +13,38 @@ case object DebugBaseID extends Field[Int]
 case object DebugSubIDSize extends Field[Int]
 case object DebugRouterBufferSize extends Field[Int]
 
-trait HasDebugModuleParameters extends UsesParameters {
+trait HasDebugModuleParameters {
+  implicit val p: Parameters
   val sysWordLength = 64          // system word length
   val regAddrWidth = 5            // 32 user registers
   val csrAddrWidth = 12           // address width of CSRs
   val csrCmdWidth = 3             // size of CSR commends
   val memOpSize = 5               // size of memory operations
-  val ctmScoreBoardSize = params(DebugCtmScorBoardSize)
+  val ctmScoreBoardSize = p(DebugCtmScorBoardSize)
                                   // size of scoreboard in CTM, the same as L1 MISHS
   val stmUserRegAddr = 10         // the address of the user register for software trace
   val stmThreadPtrChgID = 0x8000  // the software trace id for register tracking
-  val stmCsrAddr = params(DebugStmCsrAddr)
+  val stmCsrAddr = p(DebugStmCsrAddr)
                                   // the CSR used for software trace
-  val ctmID = params(DebugCtmID)  // the debug module ID of the core trace module
-  val stmID = params(DebugStmID)  // the debug module ID of the software trace module
-  val baseID = params(DebugBaseID)
+  val ctmID = p(DebugCtmID)       // the debug module ID of the core trace module
+  val stmID = p(DebugStmID)       // the debug module ID of the software trace module
+  val baseID = p(DebugBaseID)
                                   // the starting ID for rocket cores
-  val subIDSize = params(DebugSubIDSize)
-                                  // the section size of each core
-  val bufSize = params(DebugRouterBufferSize)
+  val subIDSize = 8               // the section size of each core
+  val bufSize = p(DebugRouterBufferSize)
                                   // the size of buffer of the ring network
 }
 
-abstract class DebugModuleModule(coreid:Int)(rst:Bool = null) extends Module(_reset = rst) with HasDebugModuleParameters
-abstract class DebugModuleBundle extends Bundle with HasDebugModuleParameters
+abstract class DebugModuleModule(coreid:Int)(rst:Bool = null)(implicit val p: Parameters)
+    extends Module(_reset = rst) with HasDebugModuleParameters
+abstract class DebugModuleBundle(implicit val p: Parameters)
+    extends ParameterizedBundle()(p) with HasDebugModuleParameters
 
-
-class DebugModuleIO extends DebugModuleBundle {
+class DebugModuleIO(implicit p: Parameters) extends DebugModuleBundle()(p) {
   val net = new DiiIO
 }
 
-class DebugModuleBBoxIO extends DebugModuleBundle {
+class DebugModuleBBoxIO(implicit p: Parameters) extends DebugModuleBundle()(p) {
   val net = new DiiBBoxIO
   net.dii_in.setName("debug_in")
   net.dii_in_ready.setName("debug_in_ready")
@@ -52,7 +55,8 @@ class DebugModuleBBoxIO extends DebugModuleBundle {
   id.setName("id")
 }
 
-class RocketDebugNetwork(coreid:Int)(rst:Bool = null) extends DebugModuleModule(coreid)(rst) {
+class RocketDebugNetwork(coreid:Int)(rst:Bool = null)(implicit p: Parameters)
+    extends DebugModuleModule(coreid)(rst)(p) {
   val io = new Bundle {
     val net = Vec(2, new DiiIO)
     val ctm = (new DiiIO).flip
