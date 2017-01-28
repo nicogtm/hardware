@@ -1,0 +1,11 @@
+CAPI=1
+[main]
+name = opensocdebug:modules:cdm_ads
+depend =
+  opensocdebug:interfaces:dii_channel
+
+[fileset src_files]
+file_type = systemVerilogSource
+usage = sim synth
+files =
+  common/osd_cdm_ads.sv

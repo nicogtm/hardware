@@ -60,7 +60,7 @@ module osd_regaccess
    enum {
          STATE_IDLE, STATE_START, STATE_ADDR, STATE_WRITE,
          STATE_RESP_START, STATE_RESP_SRC, STATE_RESP_VALUE,
-         STATE_DROP, STATE_EXT_START, STATE_EXT_WAIT
+         STATE_RESP_READ, STATE_DROP, STATE_EXT_START, STATE_EXT_WAIT
          } state, nxt_state;
 
    // Local request/response data
@@ -77,8 +77,13 @@ module osd_regaccess
    logic [9:0]              nxt_resp_dest;
    logic                    nxt_resp_error;
 
-   logic                    addr_is_ext;
-   logic [8:0]  addr_internal;
+
+   reg [2:0]      req_length;
+   reg [2:0]      req_counter;
+   logic [2:0]    nxt_req_counter;
+   
+   logic          addr_is_ext;
+   logic [8:0]    addr_internal;
    assign addr_is_ext = (debug_in.data[15:9] != 0);
    assign addr_internal = debug_in.data[8:0];
 
@@ -101,6 +106,22 @@ module osd_regaccess
       req_write <= nxt_req_write;
       req_size <= nxt_req_size;
       req_addr <= nxt_req_addr;
+      req_counter <= nxt_req_counter;
+      
+      case (req_size)
+         REQ_SIZE_16: begin
+            req_length <= 1;
+         end
+         REQ_SIZE_32: begin
+            req_length <= 2;
+         end
+         REQ_SIZE_64: begin
+            req_length <= 4;
+         end
+         REQ_SIZE_128: begin
+            req_length <= 8;
+         end
+      endcase
    end
 
    always @(*) begin
@@ -112,6 +133,7 @@ module osd_regaccess
       nxt_resp_dest = resp_dest;
       nxt_reqresp_value = reqresp_value;
       nxt_resp_error = resp_error;
+      nxt_req_counter = req_counter;
 
       nxt_mod_cs_stall = mod_cs_stall;
 
@@ -144,7 +166,8 @@ module osd_regaccess
         end // case: STATE_START
         STATE_ADDR: begin
            debug_in_ready = 1;
-
+           nxt_req_counter = 0;
+            
            if (addr_is_ext) begin
               nxt_req_addr = debug_in.data;
               if (debug_in.valid) begin
@@ -200,10 +223,9 @@ module osd_regaccess
            if (debug_in.valid) begin
               nxt_reqresp_value = debug_in.data;
               if (req_addr[15:9] != 0) begin
-                 if (debug_in.last)
-                   nxt_state = STATE_EXT_START;
-                 else
-                   nxt_state = STATE_DROP;
+                 nxt_req_counter = req_counter + 1;
+                 nxt_state = STATE_EXT_START;
+
               end else begin
                  case (req_addr)
                    REG_CS: begin
@@ -250,20 +272,37 @@ module osd_regaccess
            end
         end
         STATE_RESP_VALUE: begin
-           debug_out.valid = 1;
-           debug_out.data = reqresp_value[15:0];
-           debug_out.last = 1;
-           if (debug_out_ready) begin
-              nxt_state = STATE_IDLE;
+            debug_out.data = reqresp_value[15:0];
+            debug_out.valid = 1;
+            if (debug_out_ready) begin
+               nxt_req_counter = req_counter + 1;
+               if ((!req_write) && (nxt_req_counter != req_length)) begin
+                  nxt_state = STATE_RESP_READ;
+               end else begin 
+                  debug_out.last = 1; 
+                  nxt_state = STATE_IDLE;
+               end
            end
         end
+        
+        STATE_RESP_READ: begin
+            reg_request = 1;
+            if (reg_ack | reg_err) begin
+               nxt_reqresp_value[15:0] = reg_rdata;
+               nxt_state = STATE_RESP_VALUE;
+            end
+         end
 
         STATE_EXT_START: begin
            reg_request = 1;
            if (reg_ack | reg_err) begin
-              nxt_reqresp_value = reg_rdata;
-              nxt_resp_error = reg_err;
-              nxt_state = STATE_RESP_START;
+              if ((req_write) && (req_counter != req_length)) begin
+                     nxt_state = STATE_WRITE;
+              end else begin
+                  nxt_reqresp_value = reg_rdata;
+                  nxt_resp_error = reg_err;
+                  nxt_state = STATE_RESP_START;
+              end
            end
         end
 
