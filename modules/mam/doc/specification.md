@@ -44,6 +44,26 @@ There is a generic interface between the MAM and the system:
  `read_data`   | System->MAM | Read data
  `read_ready`  | MAM->System | Acknowledge this data item
 
+## Wishbone Interface
+
+The *Wishbone Interface* maps the MAM's generic interface to the Wishbone bus protocol.
+Uses "classic" Wishbone cycles and incrementing bursts.
+
+ Signal        | Direction   | Description
+ ------------  | ----------- | -----------
+ `cyc_o`   | MAM->System | Indicates valid bus cycle in progress
+ `stb_o`   | MAM->System | Indicates valid data transfer cycle
+ `we_o`      | MAM->System | `0`: Read, `1`: Write
+ `addr_o`    | MAM->System | Request base address
+ `dat_o`   | MAM->System | Write data
+ `cti_o`    | MAM->System | Indicates access type. `000`: Classic, `010`: Incrementing burst,	`111`: End of burst
+ `bte_o` | MAM->System | Unused
+ `sel_o`  | MAM->System | Select part of `dat_i`/`dat_o` with valid data. Always `0` as granularity matches port width.
+ `ack_i` | System->MAM | Acknowledge this data item
+ `dat_i`  | System->MAM | Read data
+
+For more details on the Wishbone protocol, refer to the [Wishbone Specification](http://cdn.opencores.org/downloads/wbspec_b3.pdf)
+
 # Memory Map
 
  Address Range | Description
